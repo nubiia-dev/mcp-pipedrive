@@ -8,6 +8,7 @@ import { logger } from './utils/logger.js';
 import { handleToolError } from './utils/error-handler.js';
 import { metricsCollector } from './utils/metrics.js';
 import { DEFAULT_TOOLSETS, findToolset } from './utils/toolset-filter.js';
+import { isWriteOperation } from './utils/read-only.js';
 
 // Import all tool functions
 import { getDealTools } from './tools/deals/index.js';
@@ -134,32 +135,6 @@ const allTools: Record<string, Tool> = {
   ...getChannelTools(client),
   ...getMeetingTools(client),
 };
-
-// Helper function to check if a tool name represents a write operation
-function isWriteOperation(toolName: string): boolean {
-  return (
-    toolName.includes('/create') ||
-    toolName.includes('_create') ||
-    toolName.includes('/update') ||
-    toolName.includes('_update') ||
-    toolName.includes('/delete') ||
-    toolName.includes('_delete') ||
-    toolName.includes('/add_') ||
-    toolName.includes('_add_') ||
-    toolName.includes('/remove_') ||
-    toolName.includes('_remove_') ||
-    toolName.includes('/upload') ||
-    toolName.includes('_upload') ||
-    toolName.includes('/duplicate') ||
-    toolName.includes('_duplicate') ||
-    toolName.includes('/mark_') ||
-    toolName.includes('_mark_') ||
-    toolName.includes('/attach_') ||
-    toolName.includes('_attach_') ||
-    toolName.includes('/move_') ||
-    toolName.includes('_move_')
-  );
-}
 
 // Filter by toolset and read-only mode
 const tools = Object.fromEntries(
