@@ -363,9 +363,22 @@ export async function buildResolvedCustomFields(
 
   const out: Record<string, unknown> = {};
 
+  // API v2 nests custom field values under a `custom_fields` object keyed by hash
+  // (e.g. { custom_fields: { <hash>: value } }) instead of the flat, hash-keyed-at-root
+  // layout API v1 uses. Support both so this stays useful for v1 and v2 tools alike.
+  const nested = data.custom_fields;
+  const nestedFields =
+    nested && typeof nested === 'object' ? (nested as Record<string, unknown>) : undefined;
+
   for (const def of defs) {
-    if (!(def.key in data)) continue;
-    const raw = data[def.key];
+    let raw: unknown;
+    if (def.key in data) {
+      raw = data[def.key];
+    } else if (nestedFields && def.key in nestedFields) {
+      raw = nestedFields[def.key];
+    } else {
+      continue;
+    }
     if (raw === null || raw === undefined || raw === '') continue;
     out[def.name] = humanizeValue(def, raw);
   }

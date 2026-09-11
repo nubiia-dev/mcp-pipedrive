@@ -133,6 +133,12 @@ export const ListDealsSchema = PaginationSchema.extend({
   add_time_until: DateStringSchema.optional().describe(
     'Filter deals created on or before this date (YYYY-MM-DD). Applied client-side.'
   ),
+  cursor: z
+    .string()
+    .optional()
+    .describe(
+      'Opaque pagination cursor from a previous response (additional_data.next_cursor). Backed by API v2 — supersedes start, which is deprecated and ignored.'
+    ),
 }).strict();
 
 export type ListDealsInput = z.infer<typeof ListDealsSchema>;

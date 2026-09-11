@@ -367,6 +367,36 @@ describe('buildResolvedCustomFields', () => {
     });
     expect(result).toEqual({});
   });
+
+  it('resolves values nested under custom_fields (API v2 shape)', async () => {
+    mockClient.get = vi.fn().mockResolvedValue({ success: true, data: defs });
+    await loadFieldDefinitions(mockClient, 'deal', { fetchIfMissing: true });
+
+    const result = await buildResolvedCustomFields(mockClient, 'deal', {
+      title: 'Deal X',
+      custom_fields: {
+        ['a'.repeat(40)]: 11,
+        ['b'.repeat(40)]: 7500,
+      },
+    });
+
+    expect(result).toEqual({
+      Industria: 'Finance',
+      Budget: 7500,
+    });
+  });
+
+  it('prefers a root-level (v1) value over a nested (v2) one when both are present', async () => {
+    mockClient.get = vi.fn().mockResolvedValue({ success: true, data: defs });
+    await loadFieldDefinitions(mockClient, 'deal', { fetchIfMissing: true });
+
+    const result = await buildResolvedCustomFields(mockClient, 'deal', {
+      ['a'.repeat(40)]: 10,
+      custom_fields: { ['a'.repeat(40)]: 11 },
+    });
+
+    expect(result).toEqual({ Industria: 'Tech' });
+  });
 });
 
 describe('enrichEntityWithCustomFields', () => {
