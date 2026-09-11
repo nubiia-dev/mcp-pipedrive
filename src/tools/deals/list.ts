@@ -75,9 +75,18 @@ async function buildV2Params(
   if (org_id !== undefined) params.org_id = org_id;
   if (pipeline_id !== undefined) params.pipeline_id = pipeline_id;
   if (filter_id !== undefined) params.filter_id = filter_id;
-  if (sort) params.sort_by = sort;
-  if (sort_by) params.sort_direction = sort_by;
+  // `sort_by` (direction) defaults to 'asc' via SortDirectionSchema even when the
+  // caller never passed it, so it is only meaningful — and only sent — alongside a
+  // `sort` (field) value. Sending sort_direction without a field to sort by is not
+  // something the v2 API expects and would be noise on every unsorted request.
+  if (sort) {
+    params.sort_by = sort;
+    if (sort_by) params.sort_direction = sort_by;
+  }
 
+  // `owned_by_you=1` takes precedence over `user_id` when both are supplied: it
+  // overwrites ownerId with the resolved current-user id. This mirrors v1's
+  // behavior where owned_by_you was the more specific/intentional filter.
   let ownerId = user_id;
   if (owned_by_you) {
     ownerId = await resolveCurrentUserId(client);
@@ -120,7 +129,8 @@ Common use cases:
           stage_id: { type: 'number', description: 'Filter by stage ID' },
           user_id: {
             type: 'number',
-            description: 'Filter by user (owner) ID — sent as owner_id to v2',
+            description:
+              'Filter by user (owner) ID — sent as owner_id to v2. If owned_by_you=1 is also set, owned_by_you takes precedence and this value is ignored.',
           },
           person_id: { type: 'number', description: 'Filter by person ID' },
           org_id: { type: 'number', description: 'Filter by organization ID' },
@@ -139,7 +149,8 @@ Common use cases:
           owned_by_you: {
             type: 'number',
             enum: [0, 1],
-            description: 'Filter deals owned by the authorized user (1 = yes, 0 = no)',
+            description:
+              'Filter deals owned by the authorized user (1 = yes, 0 = no). Takes precedence over user_id when both are provided.',
           },
           add_time_from: {
             type: 'string',
@@ -213,7 +224,8 @@ Common use cases:
           stage_id: { type: 'number', description: 'Filter by stage ID' },
           user_id: {
             type: 'number',
-            description: 'Filter by user (owner) ID — sent as owner_id to v2',
+            description:
+              'Filter by user (owner) ID — sent as owner_id to v2. If owned_by_you=1 is also set, owned_by_you takes precedence and this value is ignored.',
           },
           person_id: { type: 'number', description: 'Filter by person ID' },
           org_id: { type: 'number', description: 'Filter by organization ID' },
@@ -232,7 +244,8 @@ Common use cases:
           owned_by_you: {
             type: 'number',
             enum: [0, 1],
-            description: 'Filter deals owned by the authorized user',
+            description:
+              'Filter deals owned by the authorized user. Takes precedence over user_id when both are provided.',
           },
           add_time_from: {
             type: 'string',
@@ -258,16 +271,55 @@ Common use cases:
 
         const params = await buildV2Params(client, filters);
         const pageSize = 100;
+        // Hard ceiling on the number of pages this loop will fetch. At pageSize=100
+        // that's up to 100,000 deals — well beyond any legitimate single request.
+        // It exists purely as a circuit breaker against a misbehaving API (e.g. a
+        // cursor that keeps advancing to new-but-always-empty pages) so this tool
+        // can never spin forever.
+        const MAX_PAGES = 1000;
 
         const allDeals: unknown[] = [];
         let cursor: string | undefined;
+        let pageCount = 0;
         do {
-          const pageParams = { ...params, limit: pageSize, ...(cursor ? { cursor } : {}) };
+          pageCount++;
+          if (pageCount > MAX_PAGES) {
+            throw new Error(
+              `deals_list_all_auto exceeded the maximum page limit (${MAX_PAGES} pages, ` +
+                `${allDeals.length} deals fetched) while paginating GET /api/v2/deals. ` +
+                'This most likely means the Pipedrive API kept returning a next_cursor ' +
+                'without the result set ever completing. Narrow your filters (status, ' +
+                'pipeline_id, etc.) or set max_items to cap the fetch.'
+            );
+          }
+
+          // On the last page, ask for only what's still needed so we don't fetch
+          // more than max_items when it isn't a multiple of pageSize.
+          const remaining = max_items !== undefined ? max_items - allDeals.length : undefined;
+          const limit =
+            remaining !== undefined ? Math.max(Math.min(pageSize, remaining), 0) : pageSize;
+
+          const pageParams = { ...params, limit, ...(cursor ? { cursor } : {}) };
           const page = await client.get<V2DealsListResponse>('/api/v2/deals', pageParams);
           const items = page.data ?? [];
           allDeals.push(...items);
 
-          cursor = page.additional_data?.next_cursor ?? undefined;
+          const nextCursor = page.additional_data?.next_cursor ?? undefined;
+          // Guard against a non-advancing cursor (e.g. an empty page that still
+          // returns the same cursor it was given). Without this, a page that adds
+          // zero items but keeps returning a truthy cursor would loop forever,
+          // since max_items is never reached and next_cursor never becomes null.
+          // We throw rather than silently stopping so the caller knows the result
+          // is NOT a complete, trustworthy dataset.
+          if (nextCursor !== undefined && nextCursor === cursor) {
+            throw new Error(
+              `deals_list_all_auto received a repeated cursor ("${nextCursor}") from ` +
+                `GET /api/v2/deals after fetching ${allDeals.length} deal(s) across ` +
+                `${pageCount} page(s). Aborting to avoid an infinite loop — this indicates ` +
+                'a non-advancing pagination cursor from the Pipedrive API.'
+            );
+          }
+          cursor = nextCursor;
 
           if (max_items && allDeals.length >= max_items) {
             allDeals.length = max_items;

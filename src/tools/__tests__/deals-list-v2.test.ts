@@ -17,14 +17,25 @@ describe('deals_list (API v2 migration)', () => {
 
     await tools['deals_list'].handler({});
 
-    // sort_direction is always present because ListDealsSchema's sort_by (direction)
-    // field defaults to 'asc' even when omitted — an existing schema behavior, not
-    // something this migration changes.
+    // sort_direction is omitted when no sort (field) is provided, even though
+    // ListDealsSchema's sort_by (direction) field defaults to 'asc' internally —
+    // sending a direction without a field to sort by is meaningless to v2.
     expect(mockClient.get).toHaveBeenCalledWith(
       '/api/v2/deals',
-      { limit: 100, sort_direction: 'asc' },
+      { limit: 100 },
       expect.any(Object)
     );
+  });
+
+  it('omits sort_direction when sort (field) is not provided, even though sort_by (direction) defaults to asc', async () => {
+    mockClient.get.mockResolvedValue({ success: true, data: [] });
+    const tools = getListDealsTools(mockClient);
+
+    await tools['deals_list'].handler({ sort_by: 'desc' });
+
+    const [, params] = mockClient.get.mock.calls[0];
+    expect(params).not.toHaveProperty('sort_direction');
+    expect(params).not.toHaveProperty('sort_by');
   });
 
   it('drops status when it is all_not_deleted (v1-only value, no v2 equivalent)', async () => {
@@ -202,4 +213,87 @@ describe('deals_list_all_auto (API v2 cursor pagination)', () => {
     expect(mockClient.get).toHaveBeenCalledTimes(1);
     expect((result.data as any[]).map((d: any) => d.id)).toEqual([1]);
   });
+
+  it('requests only the remaining items on the last page when max_items is not a multiple of pageSize', async () => {
+    const page1 = {
+      success: true,
+      data: [{ id: 1 }, { id: 2 }],
+      additional_data: { next_cursor: 'cursor-page-2' },
+    };
+    const page2 = {
+      success: true,
+      data: [{ id: 3 }],
+      additional_data: { next_cursor: 'cursor-page-3' },
+    };
+
+    mockClient.get = vi.fn().mockResolvedValueOnce(page1).mockResolvedValueOnce(page2);
+
+    const tools = getListDealsTools(mockClient);
+    const result = await tools['deals_list_all_auto'].handler({ max_items: 3 });
+
+    expect(mockClient.get).toHaveBeenNthCalledWith(
+      2,
+      '/api/v2/deals',
+      expect.objectContaining({ limit: 1, cursor: 'cursor-page-2' })
+    );
+    expect((result.data as any[]).map((d: any) => d.id)).toEqual([1, 2, 3]);
+  });
+
+  it('throws when the API returns a repeated (non-advancing) cursor', async () => {
+    const page1 = {
+      success: true,
+      data: [{ id: 1 }],
+      additional_data: { next_cursor: 'stuck-cursor' },
+    };
+    const page2 = {
+      success: true,
+      data: [],
+      additional_data: { next_cursor: 'stuck-cursor' },
+    };
+
+    mockClient.get = vi.fn().mockResolvedValueOnce(page1).mockResolvedValueOnce(page2);
+
+    const tools = getListDealsTools(mockClient);
+
+    await expect(tools['deals_list_all_auto'].handler({})).rejects.toThrow(/repeated cursor/i);
+    expect(mockClient.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws when an empty page still returns the same non-null cursor it was given', async () => {
+    const page1 = {
+      success: true,
+      data: [{ id: 1 }],
+      additional_data: { next_cursor: 'cursor-2' },
+    };
+    const emptyPageSameCursor = {
+      success: true,
+      data: [],
+      additional_data: { next_cursor: 'cursor-2' },
+    };
+
+    mockClient.get = vi
+      .fn()
+      .mockResolvedValueOnce(page1)
+      .mockResolvedValueOnce(emptyPageSameCursor);
+
+    const tools = getListDealsTools(mockClient);
+
+    await expect(tools['deals_list_all_auto'].handler({})).rejects.toThrow(/repeated cursor/i);
+  });
+
+  it('throws once the hard page cap is exceeded, even with an always-advancing cursor', async () => {
+    let call = 0;
+    mockClient.get = vi.fn().mockImplementation(async () => {
+      call++;
+      return {
+        success: true,
+        data: [],
+        additional_data: { next_cursor: `cursor-${call}` },
+      };
+    });
+
+    const tools = getListDealsTools(mockClient);
+
+    await expect(tools['deals_list_all_auto'].handler({})).rejects.toThrow(/maximum page limit/i);
+  }, 20000);
 });
