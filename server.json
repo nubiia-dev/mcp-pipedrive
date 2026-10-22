@@ -1,34 +1,57 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/draft/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.nubiia-dev/mcp-pipedrive",
   "description": "Complete Pipedrive CRM integration with 254 MCP tools for deals, contacts, and pipelines",
-  "version": "1.1.1",
+  "version": "2.7.0",
   "homepage": "https://github.com/nubiia-dev/mcp-pipedrive",
   "license": "MIT",
   "author": {
     "name": "Samuel Fraga",
     "url": "https://github.com/iamsamuelfraga"
   },
-  "sourceCode": "https://github.com/nubiia-dev/mcp-pipedrive",
-  "package": {
-    "registryType": "npm",
-    "identifier": "@nubiia/mcp-pipedrive",
-    "version": "1.1.1"
+  "repository": {
+    "url": "https://github.com/nubiia-dev/mcp-pipedrive",
+    "source": "github"
   },
-  "environmentVariables": {
-    "PIPEDRIVE_API_TOKEN": {
-      "description": "Your Pipedrive API token (found in Settings → Personal Preferences → API)",
-      "required": true
-    },
-    "PIPEDRIVE_COMPANY_DOMAIN": {
-      "description": "Your Pipedrive company domain (e.g., 'mycompany' if your URL is mycompany.pipedrive.com)",
-      "required": true
-    },
-    "PIPEDRIVE_TOOLSETS": {
-      "description": "Comma-separated list of toolsets to enable (e.g., 'deals,persons,organizations')"
-    },
-    "PIPEDRIVE_READ_ONLY": {
-      "description": "Set to 'true' to enable read-only mode (blocks all write operations)"
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@nubiia/mcp-pipedrive",
+      "version": "2.7.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "PIPEDRIVE_API_TOKEN",
+          "description": "Your Pipedrive API token (found in Settings → Personal Preferences → API)",
+          "format": "string",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "PIPEDRIVE_COMPANY_DOMAIN",
+          "description": "Your Pipedrive company domain (e.g., 'mycompany' if your URL is mycompany.pipedrive.com)",
+          "format": "string",
+          "isRequired": true,
+          "isSecret": false
+        },
+        {
+          "name": "PIPEDRIVE_TOOLSETS",
+          "description": "Comma-separated list of toolsets to enable (e.g., 'deals,persons,organizations')",
+          "format": "string",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "PIPEDRIVE_READ_ONLY",
+          "description": "Set to 'true' to enable read-only mode (blocks all write operations)",
+          "format": "string",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
     }
-  }
+  ]
 }
