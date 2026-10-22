@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write  # Required for OIDC authentication
-  contents: read   # Required for repository checkout
+  id-token: write # Required for OIDC authentication
+  contents: read # Required for repository checkout
 
 jobs:
   publish-mcp:
@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -31,17 +31,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Update server.json version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Updating server.json version to $VERSION"
-          node -e "
-            const fs = require('fs');
-            const server = JSON.parse(fs.readFileSync('server.json', 'utf8'));
-            server.version = '$VERSION';
-            fs.writeFileSync('server.json', JSON.stringify(server, null, 2) + '\n');
-          "
-
       - name: Download MCP Publisher
         run: |
           curl -L https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz -o mcp-publisher.tar.gz
@@ -52,4 +41,4 @@ jobs:
         run: ./mcp-publisher login github-oidc
 
       - name: Publish to MCP Registry
-        run: ./mcp-publisher publish --allow-deprecated-schema || true
+        run: ./mcp-publisher publish
