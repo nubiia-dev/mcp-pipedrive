@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.nubiia-dev/mcp-pipedrive",
   "description": "Complete Pipedrive CRM integration with 254 MCP tools for deals, contacts, and pipelines",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "homepage": "https://github.com/nubiia-dev/mcp-pipedrive",
   "license": "MIT",
   "author": {
@@ -17,7 +17,7 @@
     {
       "registryType": "npm",
       "identifier": "@nubiia/mcp-pipedrive",
-      "version": "2.7.0",
+      "version": "2.7.1",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

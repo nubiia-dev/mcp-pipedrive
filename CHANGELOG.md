@@ -1,3 +1,10 @@
+## [2.7.1](https://github.com/nubiia-dev/mcp-pipedrive/compare/v2.7.0...v2.7.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* block every write tool in read-only mode ([78dc72b](https://github.com/nubiia-dev/mcp-pipedrive/commit/78dc72b2a78664a72fa7c009594c71bddcd2f6df)), closes [#51](https://github.com/nubiia-dev/mcp-pipedrive/issues/51)
+
 ## [2.6.1](https://github.com/nubiia-dev/mcp-pipedrive/compare/v2.6.0...v2.6.1) (2026-06-28)
 
 
