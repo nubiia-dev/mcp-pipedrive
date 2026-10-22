@@ -1,5 +1,6 @@
 {
   "name": "@nubiia/mcp-pipedrive",
+  "mcpName": "io.github.nubiia-dev/mcp-pipedrive",
   "version": "2.6.1",
   "description": "Pipedrive CRM MCP server: deals, leads, contacts, pipelines, activities & custom fields for AI assistants like Claude. 300+ tools. Built by Nubiia.",
   "type": "module",
@@ -78,6 +79,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^12.0.2",
     "@semantic-release/npm": "^13.1.5",
